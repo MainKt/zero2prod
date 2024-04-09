@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse, ResponseError};
+use actix_web::{http::header::ContentType, web, HttpResponse, ResponseError};
 use reqwest::{header::LOCATION, StatusCode};
 use secrecy::Secret;
 use sqlx::PgPool;
@@ -59,5 +59,35 @@ impl ResponseError for LoginError {
             LoginError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             LoginError::AuthError(_) => StatusCode::UNAUTHORIZED,
         }
+    }
+
+    fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
+        HttpResponse::build(self.status_code())
+            .content_type(ContentType::html())
+            .body(format!(
+                r#"<DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<title>Login</title>
+</head>
+<body>
+    <p><i>{}</i></p>
+	<form action="/login" method="post">
+		<label>Username
+			<input type="text" name="username" placeholder="Enter username">
+		</label>
+
+		<label>Password
+			<input type="password" name="password" placeholder="Enter Password">
+		</label>
+
+		<button type="submit">Login</button>
+	</form>
+</body>
+
+</html>"#,
+                self
+            ))
     }
 }
