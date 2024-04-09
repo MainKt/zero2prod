@@ -1,4 +1,4 @@
-use actix_web::{http::header::ContentType, web, HttpResponse, ResponseError};
+use actix_web::{web, HttpResponse, ResponseError};
 use reqwest::{header::LOCATION, StatusCode};
 use secrecy::Secret;
 use sqlx::PgPool;
@@ -55,39 +55,13 @@ impl std::fmt::Debug for LoginError {
 
 impl ResponseError for LoginError {
     fn status_code(&self) -> reqwest::StatusCode {
-        match self {
-            LoginError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            LoginError::AuthError(_) => StatusCode::UNAUTHORIZED,
-        }
+        StatusCode::SEE_OTHER
     }
 
     fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
+        let encoded_error = urlencoding::Encoded::new(self.to_string());
         HttpResponse::build(self.status_code())
-            .content_type(ContentType::html())
-            .body(format!(
-                r#"<DOCTYPE html>
-<html lang="en">
-<head>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8">
-	<title>Login</title>
-</head>
-<body>
-    <p><i>{}</i></p>
-	<form action="/login" method="post">
-		<label>Username
-			<input type="text" name="username" placeholder="Enter username">
-		</label>
-
-		<label>Password
-			<input type="password" name="password" placeholder="Enter Password">
-		</label>
-
-		<button type="submit">Login</button>
-	</form>
-</body>
-
-</html>"#,
-                self
-            ))
+            .insert_header((LOCATION, format!("/login?error={encoded_error}")))
+            .finish()
     }
 }
